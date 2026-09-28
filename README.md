@@ -2,7 +2,7 @@
 
 **Project ID:** SRA-2026-001  
 **Target Environment:** Social Media Enterprise Infrastructure  
-**Author / Analyst:** Junior SOC Analyst Portfolio  
+**Author / Analyst:** Patricio Pérez  
 **Framework Focus:** NIST SP 800-53 / Infrastructure Hardening  
 
 ---
