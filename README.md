@@ -70,6 +70,71 @@ A multimedia enterprise experienced a two-hour Denial of Service (DDoS) attack c
 * **Root Cause Analysis:** Investigated the security event to identify the core weakness (the unconfigured firewall) and implemented targeted administrative controls.
 * **Reporting:** Escalated the incident to upper management and appropriate legal authorities as required by corporate governance.
 
+
 #### Recover
 * **Service Restoration:** Safely brought critical network services back online once threat vectors were neutralized and perimeters were secured.
 * **Post-Incident Verification:** Monitored network telemetry to ensure traffic flows returned to normal operating baselines and verified system stability before bringing non-critical systems back online.
+
+---
+
+## 📁 Project 3: Linux Access Control & File Permissions Hardening
+**Project ID:** LNX-2026-003 | **Target Environment:** Enterprise Linux Server
+**Framework / Concept:** Principle of Least Privilege (PoLP) & Discretionary Access Control (DAC)
+
+#### 1. Project Description
+As a security professional supporting an internal research team, my responsibility was to audit the Linux file system permissions within the `projects` directory to ensure alignment with corporate authorization standards. The audit involved verifying that existing permissions adhere to the principle of least privilege by identifying over-permissive files and directories. Using Linux command-line utilities, I modified access rights to eliminate unauthorized read and write access, ensuring that sensitive research assets remain protected against unauthorized modification and exposure.
+
+#### 2. Check File and Directory Details
+To perform a complete permission audit across the directory, I used the `ls -la` command. The `-l` flag lists the directory contents in a detailed, long format (including permissions, owner, group, and size), while the `-a` flag reveals hidden files (dotfiles) that are excluded by standard directory listings. 
+
+The initial audit revealed the following permission structure:
+
+```bash
+researcher2@f0754b230eca:~/projects$ ls -la
+total 32
+drwxr-xr-x 3 researcher2 research_team 4096 Oct 12 21:49 .
+drwxr-xr-x 3 researcher2 research_team 4096 Oct 12 22:27 ..
+-rw--w---- 1 researcher2 research_team   46 Oct 12 21:49 .project_x.txt
+drwx--x--- 2 researcher2 research_team 4096 Oct 12 21:49 drafts
+-rw-rw-rw- 1 researcher2 research_team   46 Oct 12 21:49 project_k.txt
+-rw-r----- 1 researcher2 research_team   46 Oct 12 21:49 project_m.txt
+-rw-rw-r-- 1 researcher2 research_team   46 Oct 12 21:49 project_r.txt
+-rw-rw-r-- 1 researcher2 research_team   46 Oct 12 21:49 project_t.txt
+```
+
+#### 3. Describe the Permissions String
+Taking `project_k.txt` as a reference (`-rw-rw-rw-`), the 10-character string indicates the file type and the discretionary access control (DAC) bits assigned to three distinct user categories:
+*   **1st character (`-`):** Represents the file type. A hyphen (`-`) indicates a regular file, whereas a `d` represents a directory.
+*   **2nd-4th characters (`rw-`):** Represent the **User/Owner** permissions (`researcher2`). The user has read (`r`) and write (`w`) permissions, but no execute (`-`) permission.
+*   **5th-7th characters (`rw-`):** Represent the **Group** permissions (`research_team`). Group members have both read (`r`) and write (`w`) permissions.
+*   **8th-10th characters (`rw-`):** Represent the **Others** permissions (all other system users). In this initial state, any user on the system possessed read (`r`) and write (`w`) access, representing a critical security violation.
+
+#### 4. Change File Permissions
+Organizational security policy prohibits "others" from having write access to any file. The baseline audit identified that `project_k.txt` violated this policy with permissions set to `-rw-rw-rw-`. To remediate this vulnerability, I executed `chmod o-w project_k.txt` to remove write permissions for the "others" group:
+
+```bash
+researcher2@f0754b230eca:~/projects$ chmod o-w project_k.txt
+researcher2@f0754b230eca:~/projects$ ls -la project_k.txt
+-rw-rw-r-- 1 researcher2 research_team 46 Oct 12 21:49 project_k.txt
+```
+
+#### 5. Change File Permissions on a Hidden File
+The research team archived `.project_x.txt`, turning it into a hidden file indicated by the leading dot (`.`). To satisfy the team's security requirement, this file needed to have write permissions revoked for all users while maintaining read access exclusively for the file owner (`researcher2`) and the `research_team` group. I used the command `chmod u-w,g-w,g+r .project_x.txt` to enforce read-only authorization:
+
+```bash
+researcher2@f0754b230eca:~/projects$ chmod u-w,g-w,g+r .project_x.txt
+researcher2@f0754b230eca:~/projects$ ls -la .project_x.txt
+-r--r----- 1 researcher2 research_team 46 Oct 12 21:49 .project_x.txt
+```
+
+#### 6. Change Directory Permissions
+Corporate access policy mandates that only the `researcher2` user should have access to the `drafts` subdirectory and its internal contents. The initial directory permissions (`drwx--x---`) granted execute (`x`) permission to the `research_team` group, allowing group members to traverse into the directory. To revoke unauthorized traversal and access, I executed `chmod g-x drafts`:
+
+```bash
+researcher2@f0754b230eca:~/projects$ chmod g-x drafts
+researcher2@f0754b230eca:~/projects$ ls -la | grep drafts
+drwx------ 2 researcher2 research_team 4096 Oct 12 21:49 drafts
+```
+
+#### 7. Summary
+During this security engagement, I inspected the authorization model across the organization's research directory using `ls -la` to detect misconfigured file and directory permissions. Utilizing the `chmod` utility, I revoked public write permissions on `project_k.txt`, locked down archived data on `.project_x.txt` to read-only for authorized members, and restricted traversal into the `drafts` directory exclusively to the owner. These remediations successfully enforced the principle of least privilege, reducing the organizational attack surface and safeguarding data integrity and confidentiality.
