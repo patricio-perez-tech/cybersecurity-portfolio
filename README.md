@@ -138,3 +138,114 @@ drwx------ 2 researcher2 research_team 4096 Oct 12 21:49 drafts
 
 #### 7. Summary
 During this security engagement, I inspected the authorization model across the organization's research directory using `ls -la` to detect misconfigured file and directory permissions. Utilizing the `chmod` utility, I revoked public write permissions on `project_k.txt`, locked down archived data on `.project_x.txt` to read-only for authorized members, and restricted traversal into the `drafts` directory exclusively to the owner. These remediations successfully enforced the principle of least privilege, reducing the organizational attack surface and safeguarding data integrity and confidentiality.
+
+---
+
+## 📁 Project 4: Database Security Investigation & Threat Triage with SQL
+**Project ID:** SQL-2026-004 | **Target Environment:** Enterprise RDBMS (PostgreSQL / SQLite)  
+**Core Competencies:** Incident Triage, Log Filtering, Access Auditing, SQL Query Construction (`AND`, `OR`, `NOT`, `LIKE`)
+
+---
+
+### 1. Project Description
+As a cybersecurity analyst within an enterprise security operations center (SOC), my responsibility was to investigate anomalous authentication events and coordinate system update deployments across workstations. Utilizing SQL against relational datasets (`log_in_attempts` and `employees`), I applied multi-parameter filters to correlate suspicious after-hours authentications, identify foreign network indicators, and segment endpoints for vulnerability remediation. This investigation highlights the role of structured query languages in accelerating threat triage and auditing access controls.
+
+---
+
+### 2. Retrieve After-Hours Failed Login Attempts
+Anomalous activity was flagged during off-peak operating hours. To isolate potential credential-stuffing or brute-force behavior, I queried the `log_in_attempts` table to return all authentication failures that transpired after business hours (18:00). 
+
+```sql
+SELECT *
+FROM log_in_attempts
+WHERE login_time > '18:00' AND success = 0;
+```
+
+* **Query Logic:** The `WHERE` clause combines two specific conditions using the `AND` operator:
+  * `login_time > '18:00'`: Evaluates the timestamp string, selecting entries initiated after 6:00 PM.
+  * `success = 0`: Filters the boolean flag to return unsuccessful attempts (value `0` or `FALSE`).
+* **Security Insight:** Both conditions must evaluate to `TRUE`. Isolating failed authentications occurring after hours highlights targets of automated dictionary or brute-force attempts while minimizing operational noise.
+
+---
+
+### 3. Retrieve Login Attempts on Specific Dates
+A potential security incident was detected on `2022-05-09`. To establish an accurate timeline and check for reconnaissance activity, I retrieved all authentications that occurred on the date of the incident and the preceding day (`2022-05-08`).
+
+```sql
+SELECT *
+FROM log_in_attempts
+WHERE login_date = '2022-05-09' OR login_date = '2022-05-08';
+```
+
+* **Query Logic:** The `OR` operator permits records that satisfy either date parameter, evaluating to `TRUE` if an authentication record contains either `2022-05-09` or `2022-05-08` in the `login_date` column.
+* **Security Insight:** Expanding the temporal baseline across adjacent days ensures visibility into initial penetration phases and helps analysts detect precursor probes that often go unnoticed prior to full exploitation.
+
+---
+
+### 4. Investigate Login Attempts Outside Mexico
+Threat intelligence indicated that anomalous account activities did not originate from the company's Mexican regional offices. To concentrate the investigation on potential external unauthorized access, I filtered out all login attempts originating from Mexico (represented in data as both `MEX` and `MEXICO`).
+
+```sql
+SELECT *
+FROM log_in_attempts
+WHERE NOT country LIKE 'MEX%';
+```
+
+* **Query Logic:** 
+  * The `LIKE` operator is coupled with the wildcard symbol `%` (`'MEX%'`) to match any string starting with the letters "MEX", effectively matching both `MEX` and `MEXICO`.
+  * The `NOT` logical operator negates this pattern, discarding any domestic Mexican connection and returning only external traffic.
+* **Security Insight:** Eliminating known benign regional access vectors allows the SOC team to isolate suspicious foreign IP ranges and narrow down indicators of compromise (IoCs).
+
+---
+
+### 5. Identify Marketing Employees in East Building for Security Patching
+The IT security department scheduled targeted patch rollouts for workstations assigned to the Marketing team in the East building. To compile the target asset inventory, I queried the `employees` table.
+
+```sql
+SELECT *
+FROM employees
+WHERE department = 'Marketing' AND office LIKE 'East%';
+```
+
+* **Query Logic:**
+  * `department = 'Marketing'`: Restricts rows to personnel assigned strictly to the Marketing business unit.
+  * `AND office LIKE 'East%'`: Enforces that the office string begins with "East" (e.g., `East-170`, `East-320`), excluding all other corporate facilities.
+* **Security Insight:** Using `AND` ensures that updates are delivered exclusively to workstations that fulfill both conditions, preventing unintended software deployments across unrelated network subnets.
+
+---
+
+### 6. Identify Employees in Finance and Sales for Critical Updates
+A secondary vulnerability patch was mandated for workstations within the Finance and Sales departments. I queried the `employees` table to identify all machines requiring deployment.
+
+```sql
+SELECT *
+FROM employees
+WHERE department = 'Finance' OR department = 'Sales';
+```
+
+* **Query Logic:** The `OR` operator includes any employee who belongs to either the `Finance` department or the `Sales` department.
+* **Security Insight:** Deploying security patches based on departmental threat exposure ensures critical financial and transaction processing environments are fortified without disrupting broader corporate operations.
+
+---
+
+### 7. Identify Employees Outside the Information Technology Department
+The IT department completed internal validation of a system patch and required rolling the update out to all remaining organizational endpoints. I created a query to return all employees outside Information Technology.
+
+```sql
+SELECT *
+FROM employees
+WHERE NOT department = 'Information Technology';
+```
+
+* **Query Logic:** The `NOT` operator negates the condition, returning all employee records where the `department` attribute is anything other than `Information Technology`.
+* **Security Insight:** This query provides an accurate punch-list for endpoint administrators to schedule staged patch pushes across all standard endpoints while skipping infrastructure hosts that have already been hardened.
+
+---
+
+### 8. Summary
+Through this structured database investigation, I leveraged SQL filtering capabilities (`AND`, `OR`, `NOT`, `LIKE`) to conduct incident triage and manage system remediation:
+1. **Authentication Log Triage:** Filtered out routine business traffic to pinpoint after-hours brute-force attempts and anomalous logins outside expected geographical boundaries (`MEX%`).
+2. **Incident Timeline Reconstruction:** Reconstructed threat actor activity leading up to and during the security event of `2022-05-09`.
+3. **Endpoint Patch Management:** Segmented employee records to facilitate scoped vulnerability patching across target business units (Marketing East, Finance, Sales, and non-IT systems).
+
+These queries demonstrate how structured data querying reduces investigation time, minimizes operational noise, and supports proactive vulnerability management across enterprise networks.
